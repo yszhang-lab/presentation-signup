@@ -3,7 +3,11 @@
  * Bound to the "Student Presentation Sign-Up Sheet" spreadsheet.
  *
  * GET  -> current sessions and slots as JSON
- * POST -> claim a slot: {"session": 1, "slot": 3, "name": "Jane Doe"}
+ * POST -> claim a slot:  {"session": 1, "slot": 3, "name": "Jane Doe"}
+ *         cancel a slot: {"action": "cancel", "session": 1, "slot": 3, "code": "ABC123"}
+ *
+ * Each sign-up gets a cancel code. Codes are kept in this script's private
+ * properties, not in the sheet, and are never sent out when the page loads.
  *
  * Layout it expects on the first sheet: a "SESSION ..." header in column B,
  * then rows with the slot number in column B and the student name in column C.
@@ -24,6 +28,8 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'bad_request' });
   }
+
+  if (req.action === 'cancel') return cancel_(req);
 
   var name = String(req.name || '').replace(/\s+/g, ' ').trim();
   if (!name || name.length > MAX_NAME) {
@@ -62,12 +68,64 @@ function doPost(e) {
     if (already) return json_({ ok: false, error: 'already_signed_up', at: already, board: board });
     if (slot.name) return json_({ ok: false, error: 'taken', board: board });
 
+    var code = newCode_();
     sheet_().getRange(slot.row, NAME_COL).setValue(name);
+    PropertiesService.getScriptProperties()
+      .setProperty(codeKey_(session.id, slot.n), code + '|' + wanted);
+    SpreadsheetApp.flush();
+    return json_({ ok: true, code: code, board: readBoard_() });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function cancel_(req) {
+  var code = String(req.code || '').replace(/\s+/g, '').toUpperCase();
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+  } catch (err) {
+    return json_({ ok: false, error: 'busy' });
+  }
+  try {
+    var board = readBoard_();
+    var slot = null;
+    board.sessions.forEach(function (s) {
+      if (s.id !== Number(req.session)) return;
+      s.slots.forEach(function (x) {
+        if (x.n === Number(req.slot)) slot = x;
+      });
+    });
+    if (!slot || !slot.name) return json_({ ok: false, error: 'not_signed_up', board: board });
+
+    var props = PropertiesService.getScriptProperties();
+    var key = codeKey_(req.session, req.slot);
+    var saved = String(props.getProperty(key) || '').split('|');
+    // The code only counts for the name it was issued to, so a name typed
+    // into the sheet by hand can only be removed in the sheet.
+    if (saved.length < 2 || saved.slice(1).join('|') !== slot.name.toLowerCase()) {
+      return json_({ ok: false, error: 'no_code', board: board });
+    }
+    if (!code || saved[0] !== code) return json_({ ok: false, error: 'wrong_code', board: board });
+
+    sheet_().getRange(slot.row, NAME_COL).clearContent();
+    props.deleteProperty(key);
     SpreadsheetApp.flush();
     return json_({ ok: true, board: readBoard_() });
   } finally {
     lock.releaseLock();
   }
+}
+
+function codeKey_(session, slot) {
+  return 'code_' + Number(session) + '_' + Number(slot);
+}
+
+function newCode_() {
+  var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  var out = '';
+  for (var i = 0; i < 6; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+  return out;
 }
 
 function sheet_() {

@@ -60,6 +60,17 @@
   h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; color: var(--ink); text-wrap: balance; }
   .intro { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
   .start { margin: 8px 0 0; color: var(--warn); font-weight: 600; }
+  .howto {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .howto h2 { margin: 0 0 4px; font-size: .95rem; }
+  .howto ol { margin: 0 0 12px; padding-left: 1.3rem; }
+  .howto li { margin: 2px 0; }
+  .howto .rule { margin: 0; color: var(--warn); font-weight: 700; }
 
   .summary { display: flex; gap: 12px; flex-wrap: wrap; }
   .stat {
@@ -129,6 +140,7 @@
     font-weight: 600;
     cursor: pointer;
   }
+  button.danger { background: var(--warn); color: var(--surface); }
   button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
   button:disabled { opacity: .55; cursor: default; }
   button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -149,8 +161,24 @@
 <main>
   <header>
     <h1>Final Presentation Sign-Up</h1>
-    <p class="intro">Pick an open slot and enter your name. Each presentation is about 10–12 minutes, including Q&amp;A. There is a 10-minute break from 9:50 to 10:00 AM.</p>
+    <p class="intro">Each presentation is about 10–12 minutes, including Q&amp;A. There is a 10-minute break from 9:50 to 10:00 AM.</p>
     <p class="start">Presentations start promptly at 8:30 AM.</p>
+    <section class="howto" aria-label="Instructions">
+      <h2>To sign up</h2>
+      <ol>
+        <li>Pick an open slot in one of the two sessions below.</li>
+        <li>Click <strong>Sign up</strong> next to that slot.</li>
+        <li>Enter your full name and click <strong>Confirm</strong>.</li>
+        <li>Write down the cancel code shown at the top of the page. You need it if you want to cancel later.</li>
+      </ol>
+      <h2>To cancel or change your slot</h2>
+      <ol>
+        <li>Click <strong>Cancel</strong> next to your own name.</li>
+        <li>Enter your cancel code and click <strong>Cancel this sign-up</strong>.</li>
+        <li>To change slots, cancel first, then sign up for another open slot.</li>
+      </ol>
+      <p class="rule">Do not cancel other people's sign-ups. Each student may hold one slot only.</p>
+    </section>
   </header>
 
   <section class="summary" aria-label="Slot counts">
@@ -161,7 +189,7 @@
   <div id="notice" class="notice" role="status" hidden></div>
   <div id="board"><p class="intro">Loading the schedule…</p></div>
 
-  <footer>One slot per student. To change or cancel your slot, email the instructor. <span id="updated"></span></footer>
+  <footer>Lost your cancel code? Email the instructor. <span id="updated"></span></footer>
 </main>
 
 <script>
@@ -173,6 +201,8 @@ let board = null;
 let openForm = null;   // "session-slot" of the row whose name form is showing
 let busy = false;
 let draftName = "";
+let openCancel = null; // "session-slot" of the row whose cancel form is showing
+let draftCode = "";
 
 const $ = (id) => document.getElementById(id);
 
@@ -223,9 +253,45 @@ function render() {
       const li = el("li", "slot" + (x.name ? "" : " open") + (isMine ? " mine" : ""));
       li.append(el("span", "n", String(x.n)));
 
-      if (x.name) {
+      if (x.name && openCancel === key) {
+        li.append(el("span", "who", x.name));
+        const form = el("form", "claim");
+        const input = el("input");
+        input.id = "code-" + key;
+        input.name = "code";
+        input.placeholder = "Cancel code";
+        input.maxLength = 12;
+        input.required = true;
+        input.autocomplete = "off";
+        input.value = draftCode;
+        input.setAttribute("aria-label", "Cancel code for slot " + x.n);
+        input.addEventListener("input", () => { draftCode = input.value; });
+        const go = el("button", "danger", busy ? "Cancelling…" : "Cancel this sign-up");
+        go.type = "submit";
+        go.disabled = busy;
+        const keep = el("button", "ghost", "Keep it");
+        keep.type = "button";
+        keep.disabled = busy;
+        keep.addEventListener("click", () => { openCancel = null; render(); });
+        form.append(input, go, keep);
+        form.addEventListener("submit", (ev) => { ev.preventDefault(); cancelSlot(s.id, x.n, input.value); });
+        li.append(form);
+      } else if (x.name) {
         li.append(el("span", "who", x.name));
         if (isMine) li.append(el("span", "tag", "Your slot"));
+        const c = el("button", "ghost", "Cancel");
+        c.type = "button";
+        c.disabled = busy;
+        c.setAttribute("aria-label", "Cancel the sign-up in " + s.title.split("•")[0].trim() + ", slot " + x.n);
+        c.addEventListener("click", () => {
+          openCancel = key;
+          openForm = null;
+          draftCode = isMine && mine.code ? mine.code : "";
+          render();
+          const i = $("code-" + key);
+          if (i) i.focus();
+        });
+        li.append(c);
       } else if (openForm === key) {
         const form = el("form", "claim");
         const input = el("input");
@@ -256,6 +322,7 @@ function render() {
         b.setAttribute("aria-label", "Sign up for " + s.title.split("•")[0].trim() + ", slot " + x.n);
         b.addEventListener("click", () => {
           openForm = key;
+          openCancel = null;
           render();
           const i = $("name-" + key);
           if (i) i.focus();
@@ -283,7 +350,7 @@ async function load(quiet) {
     if (!data.sessions) throw new Error("bad response");
     board = data;
     // Don't redraw under someone who is typing their name.
-    if (!(quiet && openForm)) render();
+    if (!(quiet && (openForm || openCancel))) render();
   } catch (e) {
     if (!quiet || !board) {
       notify("The schedule could not be loaded. Check your connection and reload the page.");
@@ -308,17 +375,18 @@ async function claim(session, slot, rawName) {
     const data = await res.json();
     if (data.board) board = data.board;
     if (data.ok) {
-      setMine({ session, slot, name });
+      setMine({ session, slot, name, code: data.code });
       openForm = null;
       draftName = "";
-      notify("You are signed up for slot " + slot + ". See you there, " + name + ".", true);
+      notify("You are signed up for session " + session + ", slot " + slot + ". Your cancel code is " + data.code +
+        ". Write it down: you need it to cancel from another device.", true);
     } else if (data.error === "taken") {
       openForm = null;
       notify("Someone just took slot " + slot + ". Pick another open slot.");
     } else if (data.error === "already_signed_up") {
       openForm = null;
       notify("“" + name + "” already has slot " + data.at.slot + " in session " + data.at.session +
-        ". To change it, email the instructor.");
+        ". Cancel that slot first to pick a different one.");
     } else if (data.error === "busy") {
       notify("Lots of people are signing up right now. Try again in a moment.");
     } else {
@@ -326,6 +394,46 @@ async function claim(session, slot, rawName) {
     }
   } catch (e) {
     notify("The sign-up could not be sent. Check your connection and try again.");
+  }
+  busy = false;
+  render();
+}
+
+async function cancelSlot(session, slot, rawCode) {
+  const code = rawCode.replace(/\s+/g, "").toUpperCase();
+  if (!code || busy) return;
+  busy = true;
+  notify("");
+  render();
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "cancel", session, slot, code }),
+    });
+    const data = await res.json();
+    if (data.board) board = data.board;
+    if (data.ok) {
+      const mine = getMine();
+      if (mine && mine.session === session && mine.slot === slot) setMine(null);
+      openCancel = null;
+      draftCode = "";
+      notify("The sign-up for session " + session + ", slot " + slot + " is cancelled. The slot is open again.", true);
+    } else if (data.error === "wrong_code") {
+      notify("That cancel code does not match this slot. Check the code and try again, or email the instructor.");
+    } else if (data.error === "no_code") {
+      openCancel = null;
+      notify("This sign-up has no cancel code, so it can only be removed by the instructor.");
+    } else if (data.error === "not_signed_up") {
+      openCancel = null;
+      notify("That slot is already open.");
+    } else if (data.error === "busy") {
+      notify("Lots of people are using the page right now. Try again in a moment.");
+    } else {
+      notify("The sign-up could not be cancelled. Try again.");
+    }
+  } catch (e) {
+    notify("The request could not be sent. Check your connection and try again.");
   }
   busy = false;
   render();
