@@ -141,6 +141,8 @@
     cursor: pointer;
   }
   button.danger { background: var(--warn); color: var(--surface); }
+  form.confirm { align-items: center; justify-content: flex-end; }
+  form.confirm .ask { font-weight: 600; }
   button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
   button:disabled { opacity: .55; cursor: default; }
   button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -169,12 +171,11 @@
         <li>Pick an open slot in one of the two sessions below.</li>
         <li>Click <strong>Sign up</strong> next to that slot.</li>
         <li>Enter your full name and click <strong>Confirm</strong>.</li>
-        <li>Write down the cancel code shown at the top of the page. You need it if you want to cancel later.</li>
       </ol>
       <h2>To cancel or change your slot</h2>
       <ol>
         <li>Click <strong>Cancel</strong> next to your own name.</li>
-        <li>Enter your cancel code and click <strong>Cancel this sign-up</strong>.</li>
+        <li>Click <strong>Yes, cancel it</strong> to confirm.</li>
         <li>To change slots, cancel first, then sign up for another open slot.</li>
       </ol>
       <p class="rule">Do not cancel other people's sign-ups. Each student may hold one slot only.</p>
@@ -189,7 +190,7 @@
   <div id="notice" class="notice" role="status" hidden></div>
   <div id="board"><p class="intro">Loading the schedule…</p></div>
 
-  <footer>Lost your cancel code? Email the instructor. <span id="updated"></span></footer>
+  <footer>Problems signing up? Email the instructor. <span id="updated"></span></footer>
 </main>
 
 <script>
@@ -202,7 +203,6 @@ let openForm = null;   // "session-slot" of the row whose name form is showing
 let busy = false;
 let draftName = "";
 let openCancel = null; // "session-slot" of the row whose cancel form is showing
-let draftCode = "";
 
 const $ = (id) => document.getElementById(id);
 
@@ -255,26 +255,18 @@ function render() {
 
       if (x.name && openCancel === key) {
         li.append(el("span", "who", x.name));
-        const form = el("form", "claim");
-        const input = el("input");
-        input.id = "code-" + key;
-        input.name = "code";
-        input.placeholder = "Cancel code";
-        input.maxLength = 12;
-        input.required = true;
-        input.autocomplete = "off";
-        input.value = draftCode;
-        input.setAttribute("aria-label", "Cancel code for slot " + x.n);
-        input.addEventListener("input", () => { draftCode = input.value; });
-        const go = el("button", "danger", busy ? "Cancelling…" : "Cancel this sign-up");
+        const form = el("form", "claim confirm");
+        form.append(el("span", "ask", "Cancel this sign-up?"));
+        const go = el("button", "danger", busy ? "Cancelling…" : "Yes, cancel it");
+        go.id = "yes-" + key;
         go.type = "submit";
         go.disabled = busy;
         const keep = el("button", "ghost", "Keep it");
         keep.type = "button";
         keep.disabled = busy;
         keep.addEventListener("click", () => { openCancel = null; render(); });
-        form.append(input, go, keep);
-        form.addEventListener("submit", (ev) => { ev.preventDefault(); cancelSlot(s.id, x.n, input.value); });
+        form.append(go, keep);
+        form.addEventListener("submit", (ev) => { ev.preventDefault(); cancelSlot(s.id, x.n, x.name); });
         li.append(form);
       } else if (x.name) {
         li.append(el("span", "who", x.name));
@@ -286,9 +278,8 @@ function render() {
         c.addEventListener("click", () => {
           openCancel = key;
           openForm = null;
-          draftCode = isMine && mine.code ? mine.code : "";
           render();
-          const i = $("code-" + key);
+          const i = $("yes-" + key);
           if (i) i.focus();
         });
         li.append(c);
@@ -375,11 +366,10 @@ async function claim(session, slot, rawName) {
     const data = await res.json();
     if (data.board) board = data.board;
     if (data.ok) {
-      setMine({ session, slot, name, code: data.code });
+      setMine({ session, slot, name });
       openForm = null;
       draftName = "";
-      notify("You are signed up for session " + session + ", slot " + slot + ". Your cancel code is " + data.code +
-        ". Write it down: you need it to cancel from another device.", true);
+      notify("You are signed up for session " + session + ", slot " + slot + ". See you there, " + name + ".", true);
     } else if (data.error === "taken") {
       openForm = null;
       notify("Someone just took slot " + slot + ". Pick another open slot.");
@@ -399,9 +389,8 @@ async function claim(session, slot, rawName) {
   render();
 }
 
-async function cancelSlot(session, slot, rawCode) {
-  const code = rawCode.replace(/\s+/g, "").toUpperCase();
-  if (!code || busy) return;
+async function cancelSlot(session, slot, name) {
+  if (busy) return;
   busy = true;
   notify("");
   render();
@@ -409,7 +398,7 @@ async function cancelSlot(session, slot, rawCode) {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "cancel", session, slot, code }),
+      body: JSON.stringify({ action: "cancel", session, slot, name }),
     });
     const data = await res.json();
     if (data.board) board = data.board;
@@ -417,13 +406,10 @@ async function cancelSlot(session, slot, rawCode) {
       const mine = getMine();
       if (mine && mine.session === session && mine.slot === slot) setMine(null);
       openCancel = null;
-      draftCode = "";
       notify("The sign-up for session " + session + ", slot " + slot + " is cancelled. The slot is open again.", true);
-    } else if (data.error === "wrong_code") {
-      notify("That cancel code does not match this slot. Check the code and try again, or email the instructor.");
-    } else if (data.error === "no_code") {
+    } else if (data.error === "changed") {
       openCancel = null;
-      notify("This sign-up has no cancel code, so it can only be removed by the instructor.");
+      notify("This slot changed while you were looking at it. Check the list and try again.");
     } else if (data.error === "not_signed_up") {
       openCancel = null;
       notify("That slot is already open.");
