@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Final Presentation Sign-Up</title>
+<style>
+  /* Layout: one centered column; summary strip on top, then one panel per session with a slot list. */
+  :root {
+    --bg: #f4f6fa;
+    --surface: #ffffff;
+    --ink: #16233b;
+    --muted: #5b6880;
+    --line: #dbe1ec;
+    --navy: #1b365d;
+    --navy-ink: #ffffff;
+    --accent: #1d5fbf;
+    --accent-ink: #ffffff;
+    --open-bg: #eef4fd;
+    --mine-bg: #e6f4ea;
+    --mine-ink: #1c6b37;
+    --warn: #b3261e;
+    --warn-bg: #fdeceb;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1522;
+      --surface: #182033;
+      --ink: #e8edf7;
+      --muted: #9aa7bf;
+      --line: #2b364d;
+      --navy: #24406e;
+      --navy-ink: #ffffff;
+      --accent: #6ea5f5;
+      --accent-ink: #0b1626;
+      --open-bg: #1c2942;
+      --mine-bg: #17362a;
+      --mine-ink: #86d9a3;
+      --warn: #ff9d95;
+      --warn-bg: #3a1c1b;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 16px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; color: var(--ink); text-wrap: balance; }
+  .intro { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
+  .start { margin: 8px 0 0; color: var(--warn); font-weight: 600; }
+
+  .summary { display: flex; gap: 12px; flex-wrap: wrap; }
+  .stat {
+    flex: 1 1 140px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .stat .label { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .stat .num { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .notice {
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: var(--warn-bg);
+    color: var(--warn);
+    border: 1px solid var(--warn);
+  }
+  .notice.ok { background: var(--mine-bg); color: var(--mine-ink); border-color: var(--mine-ink); }
+
+  .session { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .session h2 {
+    margin: 0;
+    padding: 12px 16px;
+    font-size: 1rem;
+    letter-spacing: .02em;
+    background: var(--navy);
+    color: var(--navy-ink);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .session h2 small { font-weight: 500; opacity: .85; font-size: .85rem; }
+  ol.slots { list-style: none; margin: 0; padding: 0; }
+  .slot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    min-height: 52px;
+    border-top: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .slot:first-child { border-top: 0; }
+  .slot .n {
+    flex: 0 0 2.2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  .slot .who { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+  .slot.open { background: var(--open-bg); }
+  .slot.open .who { color: var(--muted); }
+  .slot.mine { background: var(--mine-bg); }
+  .slot.mine .who { color: var(--mine-ink); font-weight: 600; }
+  .tag { font-size: .75rem; font-weight: 600; color: var(--mine-ink); }
+
+  button, input { font: inherit; }
+  button {
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  button:disabled { opacity: .55; cursor: default; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  form.claim { display: flex; gap: 8px; flex: 1 1 260px; flex-wrap: wrap; }
+  form.claim input {
+    flex: 1 1 160px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  footer { color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Final Presentation Sign-Up</h1>
+    <p class="intro">Pick an open slot and enter your name. Each presentation is about 10–12 minutes, including Q&amp;A. There is a 10-minute break from 9:50 to 10:00 AM.</p>
+    <p class="start">Presentations start promptly at 8:30 AM.</p>
+  </header>
+
+  <section class="summary" aria-label="Slot counts">
+    <div class="stat"><div class="label">Claimed slots</div><div class="num" id="claimed">–</div></div>
+    <div class="stat"><div class="label">Remaining slots</div><div class="num" id="remaining">–</div></div>
+  </section>
+
+  <div id="notice" class="notice" role="status" hidden></div>
+  <div id="board"><p class="intro">Loading the schedule…</p></div>
+
+  <footer>One slot per student. To change or cancel your slot, email the instructor. <span id="updated"></span></footer>
+</main>
+
+<script>
+// The web app URL of the Apps Script attached to the sign-up Google Sheet.
+const API_URL = "https://script.google.com/macros/s/AKfycbyYDf_N9_PYpN0TBCBULh0NXhCPs7Zt0dx4zaHzkP6ljnv1YeGf1imussNyb1SJUSg6/exec";
+
+const MINE_KEY = "presentation-signup-mine";
+let board = null;
+let openForm = null;   // "session-slot" of the row whose name form is showing
+let busy = false;
+let draftName = "";
+
+const $ = (id) => document.getElementById(id);
+
+function getMine() {
+  try { return JSON.parse(localStorage.getItem(MINE_KEY)); } catch (e) { return null; }
+}
+function setMine(v) {
+  try { localStorage.setItem(MINE_KEY, JSON.stringify(v)); } catch (e) {}
+}
+
+function notify(text, ok) {
+  const n = $("notice");
+  n.textContent = text;
+  n.className = ok ? "notice ok" : "notice";
+  n.hidden = !text;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function render() {
+  if (!board) return;
+  const mine = getMine();
+  let claimed = 0, total = 0;
+  const root = $("board");
+  root.replaceChildren();
+
+  board.sessions.forEach((s) => {
+    const open = s.slots.filter((x) => !x.name).length;
+    total += s.slots.length;
+    claimed += s.slots.length - open;
+
+    const sec = el("section", "session");
+    const h = el("h2");
+    h.append(el("span", null, s.title.split("•")[0].trim()));
+    h.append(el("small", null, open + " of " + s.slots.length + " open"));
+    sec.append(h);
+
+    const list = el("ol", "slots");
+    s.slots.forEach((x) => {
+      const key = s.id + "-" + x.n;
+      const isMine = mine && x.name && mine.session === s.id && mine.slot === x.n &&
+        mine.name.toLowerCase() === x.name.toLowerCase();
+      const li = el("li", "slot" + (x.name ? "" : " open") + (isMine ? " mine" : ""));
+      li.append(el("span", "n", String(x.n)));
+
+      if (x.name) {
+        li.append(el("span", "who", x.name));
+        if (isMine) li.append(el("span", "tag", "Your slot"));
+      } else if (openForm === key) {
+        const form = el("form", "claim");
+        const input = el("input");
+        input.id = "name-" + key;
+        input.name = "name";
+        input.placeholder = "Your full name";
+        input.maxLength = 60;
+        input.required = true;
+        input.autocomplete = "name";
+        input.value = draftName;
+        input.setAttribute("aria-label", "Your full name");
+        input.addEventListener("input", () => { draftName = input.value; });
+        const go = el("button", null, busy ? "Saving…" : "Confirm");
+        go.type = "submit";
+        go.disabled = busy;
+        const cancel = el("button", "ghost", "Cancel");
+        cancel.type = "button";
+        cancel.disabled = busy;
+        cancel.addEventListener("click", () => { openForm = null; render(); });
+        form.append(input, go, cancel);
+        form.addEventListener("submit", (ev) => { ev.preventDefault(); claim(s.id, x.n, input.value); });
+        li.append(form);
+      } else {
+        li.append(el("span", "who", "Open"));
+        const b = el("button", null, "Sign up");
+        b.type = "button";
+        b.disabled = busy;
+        b.setAttribute("aria-label", "Sign up for " + s.title.split("•")[0].trim() + ", slot " + x.n);
+        b.addEventListener("click", () => {
+          openForm = key;
+          render();
+          const i = $("name-" + key);
+          if (i) i.focus();
+        });
+        li.append(b);
+      }
+      list.append(li);
+    });
+    sec.append(list);
+    root.append(sec);
+  });
+  root.style.display = "flex";
+  root.style.flexDirection = "column";
+  root.style.gap = "20px";
+
+  $("claimed").textContent = claimed;
+  $("remaining").textContent = total - claimed;
+  $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ".";
+}
+
+async function load(quiet) {
+  try {
+    const res = await fetch(API_URL, { cache: "no-store" });
+    const data = await res.json();
+    if (!data.sessions) throw new Error("bad response");
+    board = data;
+    // Don't redraw under someone who is typing their name.
+    if (!(quiet && openForm)) render();
+  } catch (e) {
+    if (!quiet || !board) {
+      notify("The schedule could not be loaded. Check your connection and reload the page.");
+      if (!board) $("board").replaceChildren();
+    }
+  }
+}
+
+async function claim(session, slot, rawName) {
+  const name = rawName.replace(/\s+/g, " ").trim();
+  if (!name || busy) return;
+  busy = true;
+  notify("");
+  render();
+  try {
+    // text/plain keeps this a simple request, which Apps Script web apps accept cross-origin.
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ session, slot, name }),
+    });
+    const data = await res.json();
+    if (data.board) board = data.board;
+    if (data.ok) {
+      setMine({ session, slot, name });
+      openForm = null;
+      draftName = "";
+      notify("You are signed up for slot " + slot + ". See you there, " + name + ".", true);
+    } else if (data.error === "taken") {
+      openForm = null;
+      notify("Someone just took slot " + slot + ". Pick another open slot.");
+    } else if (data.error === "already_signed_up") {
+      openForm = null;
+      notify("“" + name + "” already has slot " + data.at.slot + " in session " + data.at.session +
+        ". To change it, email the instructor.");
+    } else if (data.error === "busy") {
+      notify("Lots of people are signing up right now. Try again in a moment.");
+    } else {
+      notify("That sign-up could not be saved. Check your name and try again.");
+    }
+  } catch (e) {
+    notify("The sign-up could not be sent. Check your connection and try again.");
+  }
+  busy = false;
+  render();
+}
+
+load(false);
+setInterval(() => { if (!busy && !document.hidden) load(true); }, 20000);
+</script>
+</body>
+</html>
